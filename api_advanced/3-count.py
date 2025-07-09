@@ -1,35 +1,30 @@
 #!/usr/bin/python3
+"""Count occurrences of keywords in hot article titles recursively."""
+
 import requests
 
 
-def count_words(subreddit, word_list, hot_list=[], after=None, word_count={}):
+def count_words(subreddit, word_list, after=None, counts={}):
     url = f"https://www.reddit.com/r/{subreddit}/hot.json"
-    headers = {'User-Agent': 'Python:ALU-scripting:v1.0 (by /u/fakeuser)'}
-    params = {'after': after}
+    headers = {"User-Agent": "Python:api_advanced:v1.0 (by /u/yourusername)"}
+    params = {"after": after}
     response = requests.get(url, headers=headers, params=params,
                             allow_redirects=False)
 
     if response.status_code != 200:
         return
 
-    data = response.json()['data']
-    posts = data['children']
+    data = response.json().get("data", {})
+    posts = data.get("children", [])
+    titles = " ".join([post["data"]["title"].lower() for post in posts])
 
-    for post in posts:
-        title_words = post['data']['title'].lower().split()
-        for word in word_list:
-            count = title_words.count(word.lower())
-            if count > 0:
-                word_lower = word.lower()
-                if word_lower in word_count:
-                    word_count[word_lower] += count
-                else:
-                    word_count[word_lower] = count
+    for word in word_list:
+        w = word.lower()
+        counts[w] = counts.get(w, 0) + titles.split().count(w)
 
-    if data['after']:
-        return count_words(subreddit, word_list, hot_list, data['after'], word_count)
+    if data.get("after"):
+        return count_words(subreddit, word_list, data["after"], counts)
 
-    if word_count:
-        sorted_counts = sorted(word_count.items(), key=lambda kv: (-kv[1], kv[0]))
-        for word, count in sorted_counts:
-            print(f"{word}: {count}")
+    filtered = {k: v for k, v in counts.items() if v > 0}
+    for word, count in sorted(filtered.items(), key=lambda x: (-x[1], x[0])):
+        print(f"{word}: {count}")
